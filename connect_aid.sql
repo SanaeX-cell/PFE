@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : 127.0.0.1
--- Généré le : jeu. 21 mai 2026 à 05:54
+-- Généré le : sam. 23 mai 2026 à 01:21
 -- Version du serveur : 10.4.32-MariaDB
 -- Version de PHP : 8.2.12
 
@@ -61,7 +61,11 @@ CREATE TABLE `contact_principal` (
 --
 
 INSERT INTO `contact_principal` (`id`, `organisation_id`, `nom`, `fonction`, `email`, `telephone`) VALUES
-(1, 1, 'yassmine', 'Président', 'yassmineelouahabi96@gmail.com', '0603284021');
+(1, 1, 'yassmine', 'Président', 'yassmineelouahabi96@gmail.com', '0603284021'),
+(2, 4, 'sanae', 'Coordinateur', 'sanae@gmail.com', '0789543265'),
+(3, 5, 'Ahmed', 'Directeur', 'ahmed@gmail.com', '0600000000'),
+(4, 6, 'Samir el khaldi', 'Directeur', 'elkhaldi@gmail.com', '0701010100'),
+(5, 7, 'salma', 'Responsable RH', 'salma@gmail.com', '');
 
 -- --------------------------------------------------------
 
@@ -78,6 +82,14 @@ CREATE TABLE `contributeurs` (
   `mot_de_passe` varchar(255) NOT NULL,
   `date_inscription` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Déchargement des données de la table `contributeurs`
+--
+
+INSERT INTO `contributeurs` (`id`, `nom`, `prenom`, `email`, `telephone`, `mot_de_passe`, `date_inscription`) VALUES
+(2, 'Ahmed', 'chakroun', 'ahmed_chakroun54@gmail.com', '0600000000', '$2y$10$JKUBrVZG72OVcsxXSgPJI.duZpvuKuUPTJ.aQuI8usNbplL8cZvNS', '2026-05-22 14:19:28'),
+(3, 'salman', 'ibrahimi', 'ibrahimi@gmail.com', '0798765435', '$2y$10$ZKK/0gxXzmYEalWEb5vV2uzK5.CFFvLJ2qjSC9F.o.RNHWaZbYqfK', '2026-05-23 00:09:20');
 
 -- --------------------------------------------------------
 
@@ -162,19 +174,17 @@ CREATE TABLE `notifications_organisation` (
 
 CREATE TABLE `organisations` (
   `id` int(11) NOT NULL,
-  `email` varchar(150) NOT NULL,
   `mot_de_passe` varchar(255) NOT NULL,
   `nom_organisation` varchar(200) NOT NULL,
   `description` text DEFAULT NULL,
   `adresse` varchar(255) DEFAULT NULL,
-  `email_public` varchar(150) DEFAULT NULL,
   `telephone` varchar(20) DEFAULT NULL,
   `site_web` varchar(255) DEFAULT NULL,
   `region` varchar(100) DEFAULT NULL,
   `statut` enum('en_attente','valide','refuse') DEFAULT 'en_attente',
   `justificatif` varchar(255) DEFAULT NULL,
   `date_inscription` datetime DEFAULT current_timestamp(),
-  `email_connexion` varchar(150) DEFAULT NULL,
+  `email_connexion` varchar(150) NOT NULL,
   `logo` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -182,8 +192,12 @@ CREATE TABLE `organisations` (
 -- Déchargement des données de la table `organisations`
 --
 
-INSERT INTO `organisations` (`id`, `email`, `mot_de_passe`, `nom_organisation`, `description`, `adresse`, `email_public`, `telephone`, `site_web`, `region`, `statut`, `justificatif`, `date_inscription`, `email_connexion`, `logo`) VALUES
-(1, '', '$2y$10$OKWwh9mG1dQB5jOeuo.HluQGh8ftH0AqWnKOS1lwRFV3XaVxNMjma', 'Organisation Dar al Aytam', 'une organisation qui aide les orphelines', 'Tétouan, Pachalik de Tétouan, Province de Tétouan, Tanger-Tétouan-Al Hoceïma, Maroc', NULL, '0503284021', '', 'Tanger-Tétouan-Al Hoceïma', 'valide', 'uploads/6a0e43081babc.jpg', '2026-05-21 00:26:00', 'yassmineelouahabi15@gmail.com', 'uploads/6a0e43081a904.png');
+INSERT INTO `organisations` (`id`, `mot_de_passe`, `nom_organisation`, `description`, `adresse`, `telephone`, `site_web`, `region`, `statut`, `justificatif`, `date_inscription`, `email_connexion`, `logo`) VALUES
+(1, '$2y$10$OKWwh9mG1dQB5jOeuo.HluQGh8ftH0AqWnKOS1lwRFV3XaVxNMjma', 'Organisation Dar al Aytam', 'une organisation qui aide les orphelines', 'Tétouan, Pachalik de Tétouan, Province de Tétouan, Tanger-Tétouan-Al Hoceïma, Maroc', '0503284021', '', 'Tanger-Tétouan-Al Hoceïma', 'valide', 'uploads/6a0e43081babc.jpg', '2026-05-21 00:26:00', 'yassmineelouahabi15@gmail.com', 'uploads/6a0e43081a904.png'),
+(4, '$2y$10$urQoFlnNrzUUEIsyKk41euBEAxSkvz3iQVPrqEiWSDkJIS/R3T7oW', 'دار المسنين', '', 'Avenue Mauritanie, Bario, Médina, Tétouan, Pachalik de Tétouan, Province de Tétouan, Tanger-Tétouan-Al Hoceïma, 93020, Maroc', '0598760932', '', 'Tanger-Tétouan-Al Hoceïma', 'en_attente', 'uploads/6a0fa512d77a5.pdf', '2026-05-22 01:36:35', 'association@gmail.com', ''),
+(5, '$2y$10$.lBjMCZZKixcsIQ.w1601utuKy6saRho18Q3oJ54tZQYDSfWbsN2u', 'Association al kayr', '', 'Fès, Pachalik du Fes, Préfecture de Fès, Fès-Meknès, Maroc', '0500000000', '', 'Fès-Meknès', 'en_attente', 'uploads/6a0fbec317d72.pdf', '2026-05-22 03:26:11', 'alkayr@gmail.ma', ''),
+(6, '$2y$10$HT69nAEZe9bZUAo6jOR2Ieb..1ahBIxRYOhaRcdqek38d5qXrs3ri', 'جمعية السلام', '', 'Ain Johra-Sidi Boukhalkhal, caïdat de Ain Johra-Boukhalkhal, cercle de Tiflet, Province de Khémisset, Rabat-Salé-Kénitra, Maroc', '0500000000', '', 'Rabat-Salé-Kénitra', 'en_attente', 'uploads/6a10588dcdc8d.jpg', '2026-05-22 14:22:21', 'assalam@gmail.ma', ''),
+(7, '$2y$10$a9VlcHwt4NapAb5yNHMEyuIMpetWcssPM1Ed0/3hv6/NERkBuaXxK', 'جمعية الوحدة', '', 'Bni Quolla, Caïdat de Bni Quolla, Cercle de Ouazzane, Province de Ouezzane, Tanger-Tétouan-Al Hoceïma, 16200, Maroc', '0567894321', '', 'Tanger-Tétouan-Al Hoceïma', 'en_attente', 'uploads/6a10e48b28114.pdf', '2026-05-23 00:19:39', 'alwahda@gmail.com', '');
 
 -- --------------------------------------------------------
 
@@ -291,8 +305,8 @@ ALTER TABLE `notifications_organisation`
 --
 ALTER TABLE `organisations`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD UNIQUE KEY `email_connexion` (`email_connexion`);
+  ADD UNIQUE KEY `email_connexion` (`email_connexion`),
+  ADD UNIQUE KEY `email_connexion_2` (`email_connexion`);
 
 --
 -- Index pour la table `participations`
@@ -323,13 +337,13 @@ ALTER TABLE `admins`
 -- AUTO_INCREMENT pour la table `contact_principal`
 --
 ALTER TABLE `contact_principal`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT pour la table `contributeurs`
 --
 ALTER TABLE `contributeurs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT pour la table `followers`
@@ -365,7 +379,7 @@ ALTER TABLE `notifications_organisation`
 -- AUTO_INCREMENT pour la table `organisations`
 --
 ALTER TABLE `organisations`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT pour la table `participations`
