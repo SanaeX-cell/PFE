@@ -1,0 +1,234 @@
+/* css/index.css - Styles pour la page d'accueil */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --teal: #1CB8B2;
+    --teal-dark: #138F8A;
+    --teal-light: #E1F7F6;
+    --orange: #F47B20;
+    --orange-light: #FEF0E6;
+    --white: #ffffff;
+    --bg: #F5F8FA;
+    --text: #1A2332;
+    --text-muted: #5A6A7A;
+    --border: #E2EAF0;
+    --shadow-md: 0 8px 32px rgba(28,184,178,0.12);
+}
+
+body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--white);
+    color: var(--text);
+}
+
+/* NAVIGATION */
+nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    height: 70px;
+}
+
+.nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.logo-icon {
+    width: 42px;
+    height: 42px;
+}
+
+.logo-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.logo-text {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 800;
+    font-size: 1.45rem;
+    letter-spacing: -0.5px;
+    color: var(--teal);
+}
+
+.logo-text em {
+    color: var(--orange);
+    font-style: normal;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    border-radius: 40px;
+    transition: all 0.2s;
+}
+
+.nav-links a:hover {
+    color: var(--teal);
+    background: var(--teal-light);
+}
+
+.btn-nav-login {
+    background: transparent !important;
+    border: 2px solid var(--border) !important;
+    color: var(--text) !important;
+}
+
+.btn-nav-login:hover {
+    border-color: var(--teal) !important;
+    color: var(--teal) !important;
+}
+
+.btn-nav-register {
+    background: var(--orange) !important;
+    color: white !important;
+    box-shadow: 0 4px 14px rgba(244,123,32,0.3);
+}
+
+.btn-nav-register:hover {
+    background: #E06A10 !important;
+    transform: translateY(-1px);
+}
+
+/* HERO SECTION */
+.hero {
+    min-height: 100vh;
+    padding-top: 70px;
+    display: flex;
+    align-items: center;
+    background: var(--white);
+}
+
+.hero-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 32px;
+    text-align: center;
+}
+
+h1 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 900;
+    font-size: 3.4rem;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    color: var(--text);
+    margin-bottom: 24px;
+}
+
+h1 .highlight {
+    color: var(--teal);
+    position: relative;
+    display: inline-block;
+}
+
+h1 .accent {
+    color: var(--orange);
+}
+
+.hero-desc {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    line-height: 1.8;
+    margin-bottom: 40px;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero-cta {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-primary {
+    background: var(--orange);
+    color: white;
+    padding: 14px 32px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.25s;
+    box-shadow: 0 6px 20px rgba(244,123,32,0.35);
+}
+
+.btn-primary:hover {
+    transform: translateY(-3px);
+}
+
+.btn-secondary {
+    background: var(--white);
+    color: var(--teal);
+    padding: 14px 32px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 2px solid var(--teal);
+    transition: all 0.25s;
+}
+
+.btn-secondary:hover {
+    background: var(--teal);
+    color: white;
+}
+
+/* FOOTER */
+footer {
+    background: var(--text);
+    color: rgba(255,255,255,0.6);
+    padding: 40px 32px;
+    text-align: center;
+}
+
+@media (max-width: 700px) {
+    h1 {
+        font-size: 2.2rem;
+    }
+    .hero-inner {
+        padding: 60px 20px;
+    }
+}
