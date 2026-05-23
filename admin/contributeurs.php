@@ -85,17 +85,23 @@ $current_page = basename($_SERVER['PHP_SELF']);
   /* ===== TOPBAR ===== */
   .topbar { background: transparent; padding: 16px 32px 16px calc(32px + 15px); display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5; }
 
-  .date-picker { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); box-shadow: var(--shadow); white-space: nowrap; }
-
-  .topbar-spacer { flex: 1; }
-
-  .search-bar { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; width: 8cm; font-size: 13px; color: var(--text-secondary); box-shadow: var(--shadow); margin-right: 1cm; }
+  /* La search-bar prend tout l'espace disponible à gauche */
+  .search-bar { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; flex: 1; font-size: 13px; color: var(--text-secondary); box-shadow: var(--shadow); }
   .search-bar input { border: none; outline: none; background: transparent; width: 100%; font-family: inherit; font-size: 13px; }
+
+  /* Groupe droite : total + date + profil alignés à droite */
+  .right-group { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+  /* ===== TOTAL BOX ===== */
+  .total-box { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 13px; font-weight: 500; color: var(--text-secondary); box-shadow: var(--shadow); white-space: nowrap; }
+  .total-box strong { color: var(--text-primary); font-weight: 700; }
+
+  .date-picker { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); box-shadow: var(--shadow); white-space: nowrap; }
 
   .profile-dropdown { position: relative; }
   .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 6px 14px 6px 6px; box-shadow: var(--shadow); }
   .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-teal); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; }
-  .user-name { font-weight: 600; font-size: 13px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-name { font-weight: 600; font-size: 13px; white-space: nowrap; }
   .dropdown-icon { font-size: 12px; transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; }
   .dropdown-menu { position: absolute; top: 100%; right: 0; margin-top: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 200px; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s; z-index: 100; }
   .profile-dropdown.active .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
@@ -107,11 +113,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
   /* ===== CONTENT ===== */
   .content { padding: 20px 32px 28px calc(32px + 15px); display: flex; flex-direction: column; gap: 20px; }
 
-
   .page-title-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 24px; font-size: 20px; font-weight: 700; color: var(--text-primary); box-shadow: var(--shadow); font-family: 'Plus Jakarta Sans', sans-serif; }
-
-  .total-label { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
-  .total-label strong { color: var(--text-primary); font-weight: 700; }
 
   /* ===== CARD / TABLE ===== */
   .card { background: var(--card-bg); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); width: 100%; }
@@ -187,34 +189,49 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <div class="main">
   <header class="topbar">
-    <div class="date-picker">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      <?php setlocale(LC_TIME, 'fr_FR.utf8', 'fr_FR', 'fr'); echo strftime('%d %B %Y'); ?>
-    </div>
-    <div class="topbar-spacer"></div>
+
+    <!-- Barre de recherche : s'élargit pour occuper tout l'espace gauche -->
     <div class="search-bar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="searchInput" placeholder="Rechercher...">
     </div>
-    <div class="profile-dropdown" id="profileDropdown">
-      <div class="user-info" onclick="toggleDropdown()">
-        <div class="avatar"><?php echo strtoupper(substr($_SESSION['user_nom'], 0, 1)); ?></div>
-        <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_nom']); ?></span>
-        <span class="dropdown-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>
-        </span>
+
+    <!-- Groupe droite : total + date + profil alignés à droite -->
+    <div class="right-group">
+
+      <!-- Box total contributeurs -->
+      <div class="total-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Total contributeurs : <strong id="totalCount"><?php echo $total_contributeurs; ?></strong>
       </div>
-      <div class="dropdown-menu">
-        <a href="mon_profil.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Mon profil</a>
-        <hr>
-        <a href="../logout.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Déconnexion</a>
+
+      <!-- Date -->
+      <div class="date-picker">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <?php setlocale(LC_TIME, 'fr_FR.utf8', 'fr_FR', 'fr'); echo strftime('%d %B %Y'); ?>
       </div>
+
+      <!-- Profil -->
+      <div class="profile-dropdown" id="profileDropdown">
+        <div class="user-info" onclick="toggleDropdown()">
+          <div class="avatar"><?php echo strtoupper(substr($_SESSION['user_nom'], 0, 1)); ?></div>
+          <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_nom']); ?></span>
+          <span class="dropdown-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>
+          </span>
+        </div>
+        <div class="dropdown-menu">
+          <a href="mon_profil.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Mon profil</a>
+          <hr>
+          <a href="../logout.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Déconnexion</a>
+        </div>
+      </div>
+
     </div>
   </header>
 
   <div class="content">
     <div class="page-title-card">Gestion des contributeurs</div>
-    <div class="total-label">Total contributeurs : <strong id="totalCount"><?php echo $total_contributeurs; ?></strong></div>
 
     <div class="card">
       <table class="contrib-table">
@@ -351,11 +368,12 @@ function goToPage(page) {
 
 // Recherche
 document.getElementById('searchInput').addEventListener('input', function(e) {
-  const term = e.target.value.toLowerCase();
+  const term = e.target.value.toLowerCase().trim();
   filteredContributeurs = allContributeurs.filter(c =>
     (c.nom||'').toLowerCase().includes(term) ||
     (c.prenom||'').toLowerCase().includes(term) ||
-    (c.email||'').toLowerCase().includes(term)
+    (c.email||'').toLowerCase().includes(term) ||
+    (c.telephone||'').toLowerCase().includes(term)
   );
   document.getElementById('totalCount').textContent = filteredContributeurs.length;
   currentPage = 1;
