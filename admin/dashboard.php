@@ -24,7 +24,13 @@ $sql = "SELECT COUNT(*) as nb FROM organisations WHERE statut = 'en_attente'";
 $result = mysqli_query($conn, $sql);
 $demandes_attente = mysqli_fetch_assoc($result)['nb'];
 
-// ========== ÉVOLUTION DES INSCRIPTIONS ==========
+// ========== ÉVOLUTION DES INSCRIPTIONS - DONNÉES PAR DÉFAUT (CE MOIS) ==========
+$mois_actuel = date('m');
+$annee_actuelle = date('Y');
+$mois_dernier = date('m', strtotime('-1 month'));
+$annee_dernier = date('Y', strtotime('-1 month'));
+
+// Données pour ce mois
 $nombre_jours = date('t');
 $jours_labels = [];
 $contrib_data = [];
@@ -33,34 +39,77 @@ $org_data = [];
 for ($i = 1; $i <= $nombre_jours; $i++) {
     $jours_labels[] = "Jour " . $i;
     $date = date('Y-m-' . str_pad($i, 2, '0', STR_PAD_LEFT));
-    $sql = "SELECT COUNT(*) as nb FROM contributeurs WHERE DATE(date_inscription) = '$date'";
+    $sql = "SELECT COUNT(*) as nb FROM contributeurs WHERE DATE(date_inscription) = '$date' AND MONTH(date_inscription) = '$mois_actuel' AND YEAR(date_inscription) = '$annee_actuelle'";
     $result = mysqli_query($conn, $sql);
     $contrib_data[] = mysqli_fetch_assoc($result)['nb'];
-    $sql = "SELECT COUNT(*) as nb FROM organisations WHERE DATE(date_inscription) = '$date'";
+    $sql = "SELECT COUNT(*) as nb FROM organisations WHERE DATE(date_inscription) = '$date' AND MONTH(date_inscription) = '$mois_actuel' AND YEAR(date_inscription) = '$annee_actuelle'";
     $result = mysqli_query($conn, $sql);
     $org_data[] = mysqli_fetch_assoc($result)['nb'];
 }
 
+// Données pour le mois dernier
+$jours_labels_dernier = [];
+$contrib_data_dernier = [];
+$org_data_dernier = [];
+$nombre_jours_dernier = date('t', strtotime('last month'));
+
+for ($i = 1; $i <= $nombre_jours_dernier; $i++) {
+    $jours_labels_dernier[] = "Jour " . $i;
+    $date = date('Y-m-' . str_pad($i, 2, '0', STR_PAD_LEFT), strtotime('last month'));
+    $sql = "SELECT COUNT(*) as nb FROM contributeurs WHERE DATE(date_inscription) = '$date' AND MONTH(date_inscription) = '$mois_dernier' AND YEAR(date_inscription) = '$annee_dernier'";
+    $result = mysqli_query($conn, $sql);
+    $contrib_data_dernier[] = mysqli_fetch_assoc($result)['nb'];
+    $sql = "SELECT COUNT(*) as nb FROM organisations WHERE DATE(date_inscription) = '$date' AND MONTH(date_inscription) = '$mois_dernier' AND YEAR(date_inscription) = '$annee_dernier'";
+    $result = mysqli_query($conn, $sql);
+    $org_data_dernier[] = mysqli_fetch_assoc($result)['nb'];
+}
+
+// Axe Y fixé de 0 à 35
 $y_max = 35;
 
 // ========== RÉPARTITION DES POSTS ==========
-$sql = "SELECT type_demande, COUNT(*) as nb FROM posts GROUP BY type_demande";
-$result = mysqli_query($conn, $sql);
-$volontariat_count = 0;
-$donation_count = 0;
-while($row = mysqli_fetch_assoc($result)) {
-    if($row['type_demande'] == 'volontariat') $volontariat_count = $row['nb'];
-    else $donation_count = $row['nb'];
+function getPostsStats($conn, $mois = null, $annee = null) {
+    if ($mois && $annee) {
+        $sql = "SELECT type_demande, COUNT(*) as nb FROM posts WHERE MONTH(date_creation) = '$mois' AND YEAR(date_creation) = '$annee' GROUP BY type_demande";
+    } else {
+        $sql = "SELECT type_demande, COUNT(*) as nb FROM posts GROUP BY type_demande";
+    }
+    $result = mysqli_query($conn, $sql);
+    $volontariat_count = 0;
+    $donation_count = 0;
+    while($row = mysqli_fetch_assoc($result)) {
+        if($row['type_demande'] == 'volontariat') $volontariat_count = $row['nb'];
+        else if($row['type_demande'] == 'donation') $donation_count = $row['nb'];
+    }
+    $total = $volontariat_count + $donation_count;
+    return [
+        'volontariat' => $volontariat_count,
+        'donation' => $donation_count,
+        'volontariat_pct' => $total > 0 ? round(($volontariat_count / $total) * 100) : 0,
+        'donation_pct' => $total > 0 ? round(($donation_count / $total) * 100) : 0
+    ];
 }
-$total_posts_count = $volontariat_count + $donation_count;
-$volontariat_pct = $total_posts_count > 0 ? round(($volontariat_count / $total_posts_count) * 100) : 0;
-$donation_pct    = $total_posts_count > 0 ? round(($donation_count    / $total_posts_count) * 100) : 0;
 
-// ========== TOUTES LES ORGANISATIONS (pagination côté client) ==========
-$sql = "SELECT * FROM organisations ORDER BY date_inscription DESC";
+$posts_stats = getPostsStats($conn);
+$volontariat_pct = $posts_stats['volontariat_pct'];
+$donation_pct = $posts_stats['donation_pct'];
+
+// Statistiques pour ce mois
+$posts_stats_mois = getPostsStats($conn, $mois_actuel, $annee_actuelle);
+// Statistiques pour le mois dernier
+$posts_stats_dernier = getPostsStats($conn, $mois_dernier, $annee_dernier);
+
+// ========== TOUTES LES ORGANISATIONS ==========
+$sql = "SELECT id, nom_organisation, date_inscription, statut, logo FROM organisations ORDER BY date_inscription DESC";
 $result_org = mysqli_query($conn, $sql);
 $toutes_org = [];
-while($row = mysqli_fetch_assoc($result_org)) $toutes_org[] = $row;
+while($row = mysqli_fetch_assoc($result_org)) {
+    // Pour les logos, on enlève "uploads/" du chemin si présent car on va l'ajouter dans le JS
+    if($row['logo'] && strpos($row['logo'], 'uploads/') === 0) {
+        $row['logo'] = substr($row['logo'], 8);
+    }
+    $toutes_org[] = $row;
+}
 
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
@@ -120,22 +169,93 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
   .main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
 
-  .topbar { background: transparent; padding: 16px 32px 16px calc(32px + 15px); display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5; }
+  .topbar {
+    background: transparent;
+    padding: 16px 32px 16px calc(32px + 15px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex-wrap: wrap;
+  }
 
-  .greeting { flex: 1; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; box-shadow: var(--shadow); }
+  .greeting {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 18px;
+    box-shadow: var(--shadow);
+    min-width: 200px;
+  }
   .greeting h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
   .greeting p  { font-size: 11px; color: var(--text-secondary); font-weight: 400; margin-top: 1px; }
 
-  .date-picker { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); box-shadow: var(--shadow); }
-
-  .search-bar { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; width: 320px; font-size: 13px; color: var(--text-secondary); cursor: text; box-shadow: var(--shadow); }
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    width: 280px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: text;
+    box-shadow: var(--shadow);
+  }
   .search-bar input { border: none; outline: none; background: transparent; width: 100%; font-family: inherit; font-size: 13px; }
 
+  .date-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-primary);
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+
   .profile-dropdown { position: relative; }
-  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 6px 14px 6px 6px; box-shadow: var(--shadow); }
-  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-teal); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; }
-  .user-name { font-weight: 600; font-size: 13px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dropdown-icon { font-size: 12px; transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; }
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px 14px 6px 6px;
+    box-shadow: var(--shadow);
+  }
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent-teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .user-details { display: flex; flex-direction: column; gap: 1px; }
+  .user-name  { font-weight: 600; font-size: 13px; white-space: nowrap; color: var(--text-primary); }
+  .user-email { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+
+  .dropdown-icon { font-size: 12px; transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; flex-shrink: 0; }
   .dropdown-menu { position: absolute; top: 100%; right: 0; margin-top: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 200px; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s; z-index: 100; }
   .profile-dropdown.active .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
   .profile-dropdown.active .dropdown-icon { transform: rotate(180deg); }
@@ -159,10 +279,52 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .mid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 
   .card { background: var(--card-bg); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); width: 100%; }
-  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
   .card-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
 
-  .dropdown-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 500; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit; }
+  .dropdown-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: inherit;
+    position: relative;
+  }
+  
+  .dropdown-menu-custom {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 5px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-width: 140px;
+    z-index: 100;
+    display: none;
+  }
+  .dropdown-menu-custom.show {
+    display: block;
+  }
+  .dropdown-menu-custom div {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .dropdown-menu-custom div:hover {
+    background: var(--bg);
+    color: var(--text-primary);
+  }
 
   .chart-wrap { height: 320px; position: relative; }
 
@@ -180,30 +342,54 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .org-table td { padding: 13px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
   .org-table tr:last-child td { border-bottom: none; }
   .org-name { display: flex; align-items: center; gap: 10px; }
-  .org-avatar { width: 34px; height: 34px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+
+  .org-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-teal);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .org-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
   .org-title { font-weight: 600; font-size: 13px; }
 
-  .status-badge { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 30px; font-size: 12px; font-weight: 600; }
-  .status-accepted { background: rgba(34, 197, 94, 0.12);  color: #22c55e; }
-  .status-refused  { background: rgba(239, 68, 68, 0.12);  color: #ef4444; }
-  .status-pending  { background: rgba(244, 123, 32, 0.12); color: #F47B20; }
+  .status-badge { 
+    display: inline-flex; 
+    align-items: center; 
+    padding: 5px 12px; 
+    border-radius: 30px; 
+    font-size: 12px; 
+    font-weight: 600; 
+  }
+  .status-accepted { 
+    background: rgba(20, 184, 166, 0.12);  
+    color: #14B8A6; 
+  }
+  .status-refused  { 
+    background: rgba(220, 38, 38, 0.12);  
+    color: #DC2626; 
+  }
+  .status-pending  { 
+    background: rgba(245, 223, 76, 0.15); 
+    color: #B8860B; 
+  }
 
-  /* ===== PAGINATION ===== */
   .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
   .pagination-controls { display: flex; align-items: center; gap: 6px; }
-
-  .page-btn {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: #fff;
-    color: var(--text-secondary);
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.18s;
-    font-family: inherit;
-  }
+  .page-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.18s; font-family: inherit; }
   .page-btn:hover:not(:disabled):not(.active) { border-color: #F47B20; color: #F47B20; background: #fff4ee; }
   .page-btn.active { background: #F47B20; color: #fff; border-color: #F47B20; }
   .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -212,8 +398,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
   @media (max-width: 768px) {
     .stat-cards { grid-template-columns: repeat(2, 1fr); }
     .mid-row { grid-template-columns: 1fr; }
-    .topbar { flex-wrap: wrap; }
-    .search-bar { width: 100%; order: 3; margin-top: 10px; }
+    .search-bar { width: 100%; }
   }
 </style>
 </head>
@@ -229,15 +414,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
       <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
       Tableau de bord
     </div>
-    <div class="nav-item <?php echo ($current_page == 'demandes.php') ? 'active' : ''; ?>" data-page="demandes">
+    <div class="nav-item" data-page="demandes">
       <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-building-check" viewBox="0 0 16 16"><path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514"/><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6.5a.5.5 0 0 1-1 0V1H3v14h3v-2.5a.5.5 0 0 1 .5-.5H8v4H3a1 1 0 0 1-1-1z"/><path d="M4.5 2a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm-6 3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm-6 3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/></svg></span>
       Demandes
     </div>
-    <div class="nav-item <?php echo ($current_page == 'organisations.php') ? 'active' : ''; ?>" data-page="organisations-nav">
+    <div class="nav-item" data-page="organisations-nav">
       <span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-building" viewBox="0 0 16 16"><path d="M4 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zm11 0H3v14h3v-2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V15h3z"/></svg></span>
       Organisations
     </div>
-    <div class="nav-item <?php echo ($current_page == 'contributeurs.php') ? 'active' : ''; ?>" data-page="contributeurs">
+    <div class="nav-item" data-page="contributeurs">
       <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
       Contributeurs
     </div>
@@ -256,18 +441,24 @@ $current_page = basename($_SERVER['PHP_SELF']);
       <h2>Bonjour, administrateur</h2>
       <p>Bienvenue sur votre tableau de bord</p>
     </div>
-    <div class="date-picker">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      <?php setlocale(LC_TIME, 'fr_FR.utf8', 'fr_FR', 'fr'); echo strftime('%d %B %Y'); ?>
-    </div>
+
     <div class="search-bar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="searchInput" placeholder="Rechercher une organisation...">
     </div>
+
+    <div class="date-picker">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <?php setlocale(LC_TIME, 'fr_FR.utf8', 'fr_FR', 'fr'); echo strftime('%d %B %Y'); ?>
+    </div>
+
     <div class="profile-dropdown" id="profileDropdown">
       <div class="user-info" onclick="toggleDropdown()">
         <div class="avatar"><?php echo strtoupper(substr($_SESSION['user_nom'], 0, 1)); ?></div>
-        <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_nom']); ?></span>
+        <div class="user-details">
+          <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_nom']); ?></span>
+          <span class="user-email"><?php echo htmlspecialchars($_SESSION['user_email'] ?? 'admin@connectaid.com'); ?></span>
+        </div>
         <span class="dropdown-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>
         </span>
@@ -304,19 +495,33 @@ $current_page = basename($_SERVER['PHP_SELF']);
       <div class="card">
         <div class="card-header">
           <div class="card-title">Évolution des inscriptions</div>
-          <button class="dropdown-btn" id="periodBtn">Ce mois ▾</button>
+          <div class="dropdown-btn" id="periodBtn">
+            Ce mois <span>▾</span>
+            <div class="dropdown-menu-custom" id="periodMenu">
+              <div data-period="current">Ce mois</div>
+              <div data-period="last">Mois dernier</div>
+            </div>
+          </div>
         </div>
         <div class="chart-wrap"><canvas id="registrationsChart"></canvas></div>
       </div>
       <div class="card">
         <div class="card-header">
           <div class="card-title">Répartition des publications</div>
+          <div class="dropdown-btn" id="postsPeriodBtn">
+            Toutes <span>▾</span>
+            <div class="dropdown-menu-custom" id="postsPeriodMenu">
+              <div data-period="all">Toutes</div>
+              <div data-period="current">Ce mois</div>
+              <div data-period="last">Mois dernier</div>
+            </div>
+          </div>
         </div>
         <div class="pie-wrap">
           <div class="pie-chart"><canvas id="pieChart"></canvas></div>
           <div class="legend-pie">
-            <div class="legend-item"><div class="legend-dot-label"><div class="legend-dot" style="background:#F47B20"></div><span class="legend-name">Donation</span></div><span class="legend-pct"><?php echo $donation_pct; ?>%</span></div>
-            <div class="legend-item"><div class="legend-dot-label"><div class="legend-dot" style="background:#4ecdc4"></div><span class="legend-name">Volontariat</span></div><span class="legend-pct"><?php echo $volontariat_pct; ?>%</span></div>
+            <div class="legend-item"><div class="legend-dot-label"><div class="legend-dot" style="background:#F47B20"></div><span class="legend-name">Donation</span></div><span class="legend-pct" id="donationPct"><?php echo $donation_pct; ?>%</span></div>
+            <div class="legend-item"><div class="legend-dot-label"><div class="legend-dot" style="background:#4ecdc4"></div><span class="legend-name">Volontariat</span></div><span class="legend-pct" id="volontariatPct"><?php echo $volontariat_pct; ?>%</span></div>
           </div>
         </div>
       </div>
@@ -324,15 +529,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
     <div class="bot-row">
       <div class="card">
-        <!-- Titre seul, sans "Voir plus" -->
         <div class="card-header">
           <div class="card-title">Organisations inscrites</div>
         </div>
         <table class="org-table">
-          <thead><tr><th>Organisation</th><th>Date d'inscription</th><th>Statut</th></tr></thead>
+          <thead>
+            <tr><th>Organisation</th><th>Date d'inscription</th><th>Statut</th></tr>
+          </thead>
           <tbody id="orgTableBody"></tbody>
         </table>
-        <!-- Pagination -->
         <div class="pagination-wrap">
           <div class="pagination-controls" id="paginationControls"></div>
         </div>
@@ -347,12 +552,46 @@ const ITEMS_PER_PAGE = 8;
 let currentPage = 1;
 let filteredOrganisations = [...allOrganisations];
 
+const joursLabels = <?php echo json_encode($jours_labels); ?>;
+const contributeursData = <?php echo json_encode($contrib_data); ?>;
+const organisationsData = <?php echo json_encode($org_data); ?>;
+
+const joursLabelsDernier = <?php echo json_encode($jours_labels_dernier); ?>;
+const contributeursDataDernier = <?php echo json_encode($contrib_data_dernier); ?>;
+const organisationsDataDernier = <?php echo json_encode($org_data_dernier); ?>;
+
+const postsStatsAll = { donation: <?php echo $donation_pct; ?>, volontariat: <?php echo $volontariat_pct; ?> };
+const postsStatsCurrent = { donation: <?php echo $posts_stats_mois['donation_pct']; ?>, volontariat: <?php echo $posts_stats_mois['volontariat_pct']; ?> };
+const postsStatsLast = { donation: <?php echo $posts_stats_dernier['donation_pct']; ?>, volontariat: <?php echo $posts_stats_dernier['volontariat_pct']; ?> };
+
+let registrationsChart = null;
+let pieChart = null;
+
 function formatDateFr(dateStr) {
-  return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
 function escapeHtml(str) {
   if (!str) return '';
-  return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+  return str.replace(/[&<>'"]/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    if (m === "'") return '&#39;';
+    if (m === '"') return '&quot;';
+    return m;
+  });
+}
+
+function buildAvatar(org) {
+  const logo = org.logo;
+  if (logo && logo.trim() !== '') {
+    const src = escapeHtml('../uploads/' + logo);
+    return `<div class="org-avatar"><img src="${src}" alt="Logo" onerror="this.parentElement.innerHTML='${escapeHtml(org.nom_organisation ? org.nom_organisation.charAt(0).toUpperCase() : '?')}'"></div>`;
+  }
+  const initiale = org.nom_organisation ? org.nom_organisation.charAt(0).toUpperCase() : '?';
+  return `<div class="org-avatar" style="background:#E1F7F6; color:var(--accent-teal); font-weight:700;">${initiale}</div>`;
 }
 
 function renderOrganisations(data, page) {
@@ -364,11 +603,11 @@ function renderOrganisations(data, page) {
   slice.forEach(org => {
     const row = document.createElement('tr');
     let statusClass = '', statusText = '';
-    if      (org.statut === 'valide')     { statusClass = 'status-accepted'; statusText = 'Accepté'; }
-    else if (org.statut === 'en_attente') { statusClass = 'status-pending';  statusText = 'En attente'; }
-    else                                  { statusClass = 'status-refused';  statusText = 'Refusé'; }
+    if (org.statut === 'valide') { statusClass = 'status-accepted'; statusText = 'Accepté'; }
+    else if (org.statut === 'en_attente') { statusClass = 'status-pending'; statusText = 'En attente'; }
+    else { statusClass = 'status-refused'; statusText = 'Refusé'; }
     row.innerHTML = `
-      <td><div class="org-name"><div class="org-avatar">🏢</div><span class="org-title">${escapeHtml(org.nom_organisation)}</span></div></td>
+      <td><div class="org-name">${buildAvatar(org)}<span class="org-title">${escapeHtml(org.nom_organisation)}</span></div></td>
       <td>${formatDateFr(org.date_inscription)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>`;
     tbody.appendChild(row);
@@ -381,51 +620,48 @@ function renderPagination(total, page) {
   const ctrl = document.getElementById('paginationControls');
   ctrl.innerHTML = '';
   if (totalPages <= 1) return;
-
-  // Bouton précédent
   const prev = document.createElement('button');
   prev.className = 'page-btn'; prev.textContent = '‹'; prev.disabled = page === 1;
   prev.onclick = () => goToPage(page - 1);
   ctrl.appendChild(prev);
-
-  // Numéros
-  const pages = getPageNumbers(page, totalPages);
-  pages.forEach(p => {
-    if (p === '...') {
-      const s = document.createElement('span');
-      s.className = 'page-dots'; s.textContent = '…';
-      ctrl.appendChild(s);
-    } else {
-      const b = document.createElement('button');
-      b.className = 'page-btn' + (p === page ? ' active' : '');
-      b.textContent = p;
-      b.onclick = () => goToPage(p);
-      ctrl.appendChild(b);
+  const maxVisible = 5;
+  let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  if (endPage - startPage + 1 < maxVisible) {
+    startPage = Math.max(1, endPage - maxVisible + 1);
+  }
+  if (startPage > 1) {
+    const firstBtn = document.createElement('button');
+    firstBtn.className = 'page-btn'; firstBtn.textContent = '1'; firstBtn.onclick = () => goToPage(1);
+    ctrl.appendChild(firstBtn);
+    if (startPage > 2) {
+      const dots = document.createElement('span'); dots.className = 'page-dots'; dots.textContent = '…'; ctrl.appendChild(dots);
     }
-  });
-
-  // Bouton suivant
+  }
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (i === page ? ' active' : '');
+    btn.textContent = i; btn.onclick = () => goToPage(i);
+    ctrl.appendChild(btn);
+  }
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) {
+      const dots = document.createElement('span'); dots.className = 'page-dots'; dots.textContent = '…'; ctrl.appendChild(dots);
+    }
+    const lastBtn = document.createElement('button');
+    lastBtn.className = 'page-btn'; lastBtn.textContent = totalPages; lastBtn.onclick = () => goToPage(totalPages);
+    ctrl.appendChild(lastBtn);
+  }
   const next = document.createElement('button');
   next.className = 'page-btn'; next.textContent = '›'; next.disabled = page === totalPages;
   next.onclick = () => goToPage(page + 1);
   ctrl.appendChild(next);
 }
 
-function getPageNumbers(current, total) {
-  if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
-  if (current <= 3) return [1,2,3,4,5,'...',total];
-  if (current >= total - 2) return [1,'...',total-4,total-3,total-2,total-1,total];
-  return [1,'...',current-1,current,current+1,'...',total];
-}
-
-function goToPage(page) {
-  currentPage = page;
-  renderOrganisations(filteredOrganisations, currentPage);
-}
+function goToPage(page) { currentPage = page; renderOrganisations(filteredOrganisations, currentPage); }
 
 renderOrganisations(filteredOrganisations, currentPage);
 
-// Recherche
 document.getElementById('searchInput').addEventListener('input', function(e) {
   const term = e.target.value.toLowerCase();
   filteredOrganisations = allOrganisations.filter(org => org.nom_organisation.toLowerCase().includes(term));
@@ -433,58 +669,123 @@ document.getElementById('searchInput').addEventListener('input', function(e) {
   renderOrganisations(filteredOrganisations, currentPage);
 });
 
-// Dropdown profil
+function updateRegistrationsChart(period) {
+  let labels, contribData, orgData;
+  if (period === 'current') {
+    labels = joursLabels;
+    contribData = contributeursData;
+    orgData = organisationsData;
+  } else {
+    labels = joursLabelsDernier;
+    contribData = contributeursDataDernier;
+    orgData = organisationsDataDernier;
+  }
+  
+  if (registrationsChart) {
+    registrationsChart.destroy();
+  }
+  
+  const ctx = document.getElementById('registrationsChart').getContext('2d');
+  registrationsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Organisations', data: orgData, fill: false, borderColor: '#F47B20', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#F47B20', pointBorderColor: '#fff', pointBorderWidth: 2, tension: 0.2 },
+        { label: 'Contributeurs', data: contribData, fill: false, borderColor: '#4ecdc4', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#4ecdc4', pointBorderColor: '#fff', pointBorderWidth: 2, tension: 0.2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11, weight: '500' }, boxWidth: 12, usePointStyle: true, pointStyle: 'circle', padding: 15 } },
+        tooltip: { backgroundColor: '#1a1d2e', titleFont: { size: 12, weight: '600' }, bodyFont: { size: 12, weight: '500' }, padding: 12, cornerRadius: 8, callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.raw + ' inscription' + (ctx.raw > 1 ? 's' : ''); } } }
+      },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, color: '#8b8fa8', maxRotation: 45, autoSkip: true, maxTicksLimit: 8 } },
+        y: { 
+          min: 0, 
+          max: 35,
+          grid: { color: '#f0f1f7', drawBorder: false }, 
+          border: { display: false }, 
+          ticks: { font: { size: 11 }, color: '#8b8fa8', stepSize: 5 }, 
+          title: { display: true, text: "Nombre d'inscriptions", font: { size: 11, weight: '500' }, color: '#8b8fa8' } 
+        }
+      }
+    }
+  });
+}
+
+function updatePieChart(period) {
+  let stats;
+  if (period === 'all') {
+    stats = postsStatsAll;
+  } else if (period === 'current') {
+    stats = postsStatsCurrent;
+  } else {
+    stats = postsStatsLast;
+  }
+  
+  document.getElementById('donationPct').innerText = stats.donation + '%';
+  document.getElementById('volontariatPct').innerText = stats.volontariat + '%';
+  
+  if (pieChart) {
+    pieChart.destroy();
+  }
+  
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  pieChart = new Chart(ctx, {
+    type: 'pie',
+    data: { datasets: [{ data: [stats.donation, stats.volontariat], backgroundColor: ['#F47B20', '#4ecdc4'], borderWidth: 0, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.raw + '%'; } } } } }
+  });
+}
+
+updateRegistrationsChart('current');
+updatePieChart('all');
+
+function setupDropdown(btnId, menuId, onSelect) {
+  const btn = document.getElementById(btnId);
+  const menu = document.getElementById(menuId);
+  if (!btn || !menu) return;
+  
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    menu.classList.toggle('show');
+  });
+  
+  menu.querySelectorAll('[data-period]').forEach(function(item) {
+    item.addEventListener('click', function() {
+      const period = this.getAttribute('data-period');
+      const text = this.innerText;
+      btn.childNodes[0].nodeValue = text + ' ';
+      menu.classList.remove('show');
+      onSelect(period);
+    });
+  });
+  
+  document.addEventListener('click', function() {
+    menu.classList.remove('show');
+  });
+}
+
+setupDropdown('periodBtn', 'periodMenu', updateRegistrationsChart);
+setupDropdown('postsPeriodBtn', 'postsPeriodMenu', updatePieChart);
+
 function toggleDropdown() { document.getElementById('profileDropdown').classList.toggle('active'); }
-document.addEventListener('click', e => {
+document.addEventListener('click', function(e) {
   const d = document.getElementById('profileDropdown');
   if (d && !d.contains(e.target)) d.classList.remove('active');
 });
 
-// Graphiques
-const joursLabels      = <?php echo json_encode($jours_labels); ?>;
-const contributeursData = <?php echo json_encode($contrib_data); ?>;
-const organisationsData = <?php echo json_encode($org_data); ?>;
-const yMax              = <?php echo $y_max; ?>;
-
-new Chart(document.getElementById('registrationsChart').getContext('2d'), {
-  type: 'line',
-  data: {
-    labels: joursLabels,
-    datasets: [
-      { label: 'Organisations', data: organisationsData, fill: false, borderColor: '#F47B20', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#F47B20', pointBorderColor: '#fff', pointBorderWidth: 2, tension: 0.2 },
-      { label: 'Contributeurs', data: contributeursData, fill: false, borderColor: '#4ecdc4', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 6, pointBackgroundColor: '#4ecdc4', pointBorderColor: '#fff', pointBorderWidth: 2, tension: 0.2 }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'bottom', labels: { font: { size: 11, weight: '500' }, boxWidth: 12, usePointStyle: true, pointStyle: 'circle', padding: 15 } },
-      tooltip: { backgroundColor: '#1a1d2e', titleFont: { size: 12, weight: '600' }, bodyFont: { size: 12, weight: '500' }, padding: 12, cornerRadius: 8, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw} inscription${ctx.raw > 1 ? 's' : ''}` } }
-    },
-    scales: {
-      x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, color: '#8b8fa8', maxRotation: 45, autoSkip: true, maxTicksLimit: 8 } },
-      y: { min: 0, max: yMax, grid: { color: '#f0f1f7', drawBorder: false }, border: { display: false }, ticks: { font: { size: 11 }, color: '#8b8fa8', stepSize: 5 }, title: { display: true, text: "Nombre d'inscriptions", font: { size: 11, weight: '500' }, color: '#8b8fa8' } }
-    },
-    elements: { point: { hoverRadius: 8 } },
-    interaction: { mode: 'index', intersect: false }
-  }
-});
-
-new Chart(document.getElementById('pieChart').getContext('2d'), {
-  type: 'pie',
-  data: { datasets: [{ data: [<?php echo $donation_pct; ?>, <?php echo $volontariat_pct; ?>], backgroundColor: ['#F47B20', '#4ecdc4'], borderWidth: 0, hoverOffset: 6 }] },
-  options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw}%` } } } }
-});
-
-// Navigation sidebar
-document.querySelectorAll('.nav-item[data-page]').forEach(item => {
-  item.addEventListener('click', () => {
-    const page = item.getAttribute('data-page');
-    if      (page === 'dashboard')         window.location.href = 'dashboard.php';
-    else if (page === 'demandes')          window.location.href = 'demandes.php';
+document.querySelectorAll('.nav-item[data-page]').forEach(function(item) {
+  item.addEventListener('click', function() {
+    const page = this.getAttribute('data-page');
+    if (page === 'dashboard') window.location.href = 'dashboard.php';
+    else if (page === 'demandes') window.location.href = 'demandes.php';
     else if (page === 'organisations-nav') window.location.href = 'organisations.php';
-    else if (page === 'contributeurs')     window.location.href = 'contributeurs.php';
-    else if (page === 'deconnexion')       window.location.href = '../logout.php';
+    else if (page === 'contributeurs') window.location.href = 'contributeurs.php';
+    else if (page === 'deconnexion') window.location.href = '../logout.php';
   });
 });
 </script>
