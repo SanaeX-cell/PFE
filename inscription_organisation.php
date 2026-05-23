@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($telephone) && !preg_match('/^[0-9]+$/', $telephone)) {
         $error = "⚠️ Le numéro de téléphone ne doit contenir que des chiffres.";
     }
-    // Validation nom du responsable (lettres, espaces, tirets)
-    elseif (!empty($resp_nom) && !preg_match('/^[a-zA-ZÀ-ÿ\s\-]+$/', $resp_nom)) {
+    // Validation nom du responsable (lettres françaises, arabes, espaces, tirets)
+    elseif (!empty($resp_nom) && !preg_match('/^[\p{L}\s\-]+$/u', $resp_nom)) {
         $error = "⚠️ Le nom du responsable ne doit contenir que des lettres, espaces ou tirets.";
     }
     // Validation email responsable
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Champs obligatoires étape 1
-    if (empty($error) && (empty($nom_organisation) || empty($adresse) || empty($email_connexion) || empty($telephone) || empty($region))) {
+    if (empty($error) && (empty($nom_organisation) || empty($email_connexion) || empty($telephone) || empty($region))) {
         $error = "Veuillez remplir tous les champs obligatoires de l'étape 1.";
     }
     // Champs obligatoires étape 2
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($check->num_rows > 0) {
             $error = "Cet email est déjà utilisé.";
         } else {
-            // Upload logo
+            // Upload logo (optionnel)
             $logo = '';
             if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = 'uploads/';
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 move_uploaded_file($_FILES['logo']['tmp_name'], $logo);
             }
 
-            // Upload justificatif
+            // Upload justificatif (obligatoire)
             $justificatif = '';
             if (isset($_FILES['justificatif']) && $_FILES['justificatif']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir   = 'uploads/';
@@ -168,7 +168,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         input[type="password"]::-webkit-contacts-auto-fill-button,
         input[type="password"]::-webkit-credentials-auto-fill-button { display: none !important; }
         
-        /* Styles de base (complément) */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
             --teal: #1CB8B2;
@@ -537,7 +536,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" enctype="multipart/form-data" id="multiStepForm">
 
-            <!-- INDICATEURS D'ÉTAPES -->
             <div class="steps">
                 <div class="step" id="step1Indicator">
                     <div class="step-number">1</div>
@@ -553,7 +551,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <!-- ===== ÉTAPE 1 ===== -->
+            <!-- ÉTAPE 1 -->
             <div class="step-content" id="step1">
                 <div class="first-row">
                     <div class="field-name">
@@ -583,9 +581,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="form-group">
-                    <label>Adresse <span class="required-star">*</span></label>
+                    <label>Adresse</label>
                     <div class="address-wrapper">
-                        <input type="text" name="adresse" id="adresse" required>
+                        <input type="text" name="adresse" id="adresse">
                         <div class="map-icon" onclick="openMapModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -614,10 +612,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="row-2">
                     <div class="form-group">
                         <label>Site web</label>
-                        <input type="url" name="site_web"
-                               pattern="https?://.+"
-                               title="⚠️ Entrez une URL valide (ex: https://www.example.com)"
-                               placeholder="https://www.example.com">
+                        <input type="text" name="site_web" id="site_web" 
+                               placeholder="www.example.com" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label>Région <span class="required-star">*</span></label>
@@ -646,7 +642,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <!-- ===== ÉTAPE 2 ===== -->
+            <!-- ÉTAPE 2 -->
             <div class="step-content" id="step2">
                 <div class="row-2">
                     <div class="form-group">
@@ -691,7 +687,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <!-- ===== ÉTAPE 3 ===== -->
+            <!-- ÉTAPE 3 -->
             <div class="step-content" id="step3">
                 <div class="row-2">
                     <div class="form-group">
@@ -736,7 +732,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </main>
 
-<!-- ===== MODALE CARTE ===== -->
+<!-- MODALE CARTE -->
 <div id="mapModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -753,7 +749,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script>
-// ========== TOGGLE MOT DE PASSE ==========
 function togglePw(fieldId, btn) {
     const input    = document.getElementById(fieldId);
     const isHidden = input.type === 'password';
@@ -769,21 +764,20 @@ function togglePw(fieldId, btn) {
     btn.style.color = isHidden ? '#1CB8B2' : '#8b8fa8';
 }
 
-// ========== HELPERS ==========
 function showError(id)   { document.getElementById(id).classList.add('visible'); }
 function hideError(id)   { document.getElementById(id).classList.remove('visible'); }
 function markInvalid(el) { el.classList.add('input-invalid'); el.classList.remove('input-valid'); }
 function markValid(el)   { el.classList.remove('input-invalid'); el.classList.add('input-valid'); }
 function clearMark(el)   { el.classList.remove('input-invalid', 'input-valid'); }
 
-const LETTERS_RE = /^[A-Za-zÀ-ÿ\u0600-\u06FF\s\-]+$/;
+const LETTERS_RE = /^[\p{L}\s\-]+$/u;
 const EMAIL_RE   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// NOM ORGANISATION
+// Nom organisation
 const nomOrgInput = document.getElementById('nom_organisation');
 if (nomOrgInput) {
     nomOrgInput.addEventListener('input', function () {
-        const cleaned = this.value.replace(/[^A-Za-zÀ-ÿ\u0600-\u06FF\s\-]/g, '');
+        const cleaned = this.value.replace(/[^\p{L}\s\-]/gu, '');
         if (this.value !== cleaned) {
             this.value = cleaned;
             showError('err-nom-org'); markInvalid(this);
@@ -795,7 +789,7 @@ if (nomOrgInput) {
     });
 }
 
-// TÉLÉPHONE ÉTAPE 1
+// Téléphone étape 1
 const telInput = document.getElementById('telephone');
 if (telInput) {
     telInput.addEventListener('input', function () {
@@ -811,7 +805,7 @@ if (telInput) {
     });
 }
 
-// EMAIL ÉTAPE 1
+// Email étape 1
 const emailInput = document.getElementById('email_connexion');
 if (emailInput) {
     emailInput.addEventListener('input', function () {
@@ -822,11 +816,11 @@ if (emailInput) {
     });
 }
 
-// NOM RESPONSABLE
+// Nom responsable
 const nomRespInput = document.getElementById('resp_nom');
 if (nomRespInput) {
     nomRespInput.addEventListener('input', function () {
-        const cleaned = this.value.replace(/[^A-Za-zÀ-ÿ\u0600-\u06FF\s\-]/g, '');
+        const cleaned = this.value.replace(/[^\p{L}\s\-]/gu, '');
         if (this.value !== cleaned) {
             this.value = cleaned;
             showError('err-resp-nom'); markInvalid(this);
@@ -838,7 +832,7 @@ if (nomRespInput) {
     });
 }
 
-// EMAIL RESPONSABLE
+// Email responsable
 const respEmailInput = document.getElementById('resp_email');
 if (respEmailInput) {
     respEmailInput.addEventListener('input', function () {
@@ -849,7 +843,7 @@ if (respEmailInput) {
     });
 }
 
-// TÉLÉPHONE RESPONSABLE (optionnel)
+// Téléphone responsable (optionnel)
 const respTelInput = document.getElementById('resp_tel');
 if (respTelInput) {
     respTelInput.addEventListener('input', function () {
@@ -865,7 +859,7 @@ if (respTelInput) {
     });
 }
 
-// MOTS DE PASSE
+// Mots de passe
 const mdpInput     = document.getElementById('mot_de_passe');
 const confirmInput = document.getElementById('confirm_mdp');
 
@@ -877,17 +871,17 @@ function validateMdp() {
 if (mdpInput)     mdpInput.addEventListener('input', validateMdp);
 if (confirmInput) confirmInput.addEventListener('input', validateMdp);
 
-// BLOCAGE ENVOI
+// Blocage envoi
 document.getElementById('multiStepForm').addEventListener('submit', function (e) {
     let hasError  = false;
     let errorStep = null;
 
     const checks = [
-        ['nom_organisation', v => LETTERS_RE.test(v) && v.length > 0, 'err-nom-org',    1],
-        ['telephone',        v => /^[0-9]+$/.test(v),                  'err-telephone',  1],
-        ['email_connexion',  v => EMAIL_RE.test(v.trim()),             'err-email',      1],
-        ['resp_nom',         v => LETTERS_RE.test(v) && v.length > 0, 'err-resp-nom',   2],
-        ['resp_email',       v => EMAIL_RE.test(v.trim()),             'err-resp-email', 2],
+        ['nom_organisation', v => v.trim().length > 0, 'err-nom-org', 1],
+        ['telephone',        v => /^[0-9]+$/.test(v),  'err-telephone', 1],
+        ['email_connexion',  v => EMAIL_RE.test(v.trim()), 'err-email', 1],
+        ['resp_nom',         v => v.trim().length > 0, 'err-resp-nom', 2],
+        ['resp_email',       v => EMAIL_RE.test(v.trim()), 'err-resp-email', 2],
     ];
 
     checks.forEach(([id, test, errId, step]) => {
@@ -916,7 +910,7 @@ document.getElementById('multiStepForm').addEventListener('submit', function (e)
     }
 });
 
-// CARTE
+// Carte
 let map, marker, selectedAddress = '';
 
 function openMapModal() {
@@ -958,7 +952,6 @@ function validateAddress() {
     closeMapModal();
 }
 
-// LOGO PREVIEW
 function previewLogo(event) {
     const preview = document.getElementById('logoPreview');
     const icon    = document.querySelector('.camera-icon');
@@ -974,7 +967,6 @@ function previewLogo(event) {
     }
 }
 
-// MULTI-ÉTAPES
 let currentStep  = 1;
 const totalSteps = 3;
 
