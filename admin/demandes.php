@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['org
 
 // ========== DEMANDES EN ATTENTE ==========
 $sql = "SELECT o.id, o.nom_organisation, o.email_connexion, o.telephone, 
-               o.date_inscription, o.justificatif
+               o.date_inscription, o.justificatif, o.logo
         FROM organisations o 
         WHERE o.statut = 'en_attente' 
         ORDER BY o.date_inscription DESC";
@@ -41,6 +41,13 @@ $res_ref = mysqli_query($conn, "SELECT COUNT(*) as total FROM organisations WHER
 $nb_refusees = mysqli_fetch_assoc($res_ref)['total'];
 
 $current_page = basename($_SERVER['PHP_SELF']);
+
+function getFirstLetter($str) {
+    if (empty($str)) return '?';
+    $str = trim($str);
+    $firstChar = mb_substr($str, 0, 1, 'UTF-8');
+    return $firstChar;
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -93,58 +100,20 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .main { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
 
   /* ===== TOPBAR ===== */
-  .topbar {
-    background: transparent;
-    padding: 16px 32px 16px calc(32px + 15px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    flex-wrap: wrap;
-  }
+  .topbar { background: transparent; padding: 16px 32px 16px calc(32px + 15px); display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5; }
 
-  .today-date {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    box-shadow: var(--shadow);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .today-date svg { color: var(--accent-teal); flex-shrink: 0; }
-
-  .search-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 10px 16px;
-    flex: 1;
-    max-width: none;
-    font-size: 13px;
-    color: var(--text-secondary);
-    box-shadow: var(--shadow);
-  }
+  .search-bar { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; flex: 1; font-size: 13px; color: var(--text-secondary); box-shadow: var(--shadow); }
   .search-bar input { border: none; outline: none; background: transparent; width: 100%; font-family: inherit; font-size: 13px; }
 
-  .topbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .right-group { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+  .date-picker { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); box-shadow: var(--shadow); white-space: nowrap; }
+
   .profile-dropdown { position: relative; }
   .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 6px 14px 6px 6px; box-shadow: var(--shadow); }
-  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-teal); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
-  .user-name { font-weight: 600; font-size: 13px; }
-  .dropdown-icon { transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-teal); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; }
+  .user-name { font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .dropdown-icon { font-size: 12px; transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; }
   .dropdown-menu { position: absolute; top: 100%; right: 0; margin-top: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 200px; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s; z-index: 100; }
   .profile-dropdown.active .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
   .profile-dropdown.active .dropdown-icon { transform: rotate(180deg); }
@@ -153,121 +122,127 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .dropdown-menu hr { margin: 4px 0; border: none; border-top: 1px solid var(--border); }
 
   /* ===== CONTENT ===== */
-  .content { padding: 8px 32px 32px calc(32px + 15px); display: flex; flex-direction: column; gap: 24px; }
+  .content { padding: 20px 32px 28px calc(32px + 15px); display: flex; flex-direction: column; gap: 20px; }
 
-  /* ===== WELCOME CARD ===== */
-  .welcome-card {
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    padding: 24px 28px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-  }
-  .welcome-card h1 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 6px;
-  }
-  .welcome-card p {
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
+  .page-title-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 24px; font-size: 20px; font-weight: 700; color: var(--text-primary); box-shadow: var(--shadow); font-family: 'Plus Jakarta Sans', sans-serif; }
 
-  /* ===== STATS CARDS ROW ===== */
+  /* ===== STATS CARDS ===== */
   .stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-
-  .stat-card {
     display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .stat-card {
+    display: inline-flex;
     align-items: center;
-    gap: 16px;
+    gap: 10px;
     background: #fff;
-    padding: 20px 24px;
-    border-radius: 20px;
+    padding: 11px 18px;
+    border-radius: 12px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border);
-    min-height: 90px;
   }
-  .stat-card__icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+  .stat-card__icon { display: flex; align-items: center; color: #8b8fa8; flex-shrink: 0; }
+  .stat-card__label { font-size: 13px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; }
+  .stat-card__value { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+
+  /* ===== TABLEAU — carte blanche style photo ===== */
+  .card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 0;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
   }
-  .stat-card--attente .stat-card__icon { background: linear-gradient(135deg, #1CB8B2, #138F8A); color: #fff; }
-  .stat-card--green .stat-card__icon   { background: rgba(34,197,94,0.12); color: #22c55e; }
-  .stat-card--red .stat-card__icon     { background: rgba(239,68,68,0.12); color: #ef4444; }
-  .stat-card__body { display: flex; flex-direction: column; }
-  .stat-card__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 4px; }
-  .stat-card__value { font-size: 28px; font-weight: 800; color: var(--text-primary); line-height: 1; }
-  .stat-card--attente .stat-card__value { color: var(--accent-teal); }
-
-  /* ===== CARD TABLEAU ===== */
-  .card { background: var(--card-bg); border-radius: var(--radius); padding: 0; box-shadow: var(--shadow); overflow: hidden; }
-
-  /* ===== TABLEAU ===== */
   .dem-table { width: 100%; border-collapse: collapse; }
-  .dem-table thead tr { background: #fafbff; }
-  .dem-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-  .dem-table td { padding: 18px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 13px; color: var(--text-primary); }
+  .dem-table thead tr { background: #F47B20; }
+  .dem-table th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 14px 16px;
+  }
+  .dem-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f8;
+    vertical-align: middle;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
   .dem-table tbody tr:last-child td { border-bottom: none; }
-  .dem-table tbody tr { transition: background 0.15s; }
   .dem-table tbody tr:hover { background: #fafbff; }
 
-  .org-cell { display: flex; align-items: center; gap: 12px; }
-  .org-logo { width: 42px; height: 42px; border-radius: 12px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; border: 1px solid var(--border); }
-  .org-nom { font-weight: 600; font-size: 14px; color: var(--text-primary); }
-  .email-cell { color: var(--text-secondary); font-size: 13px; }
-  .tel-cell { color: var(--text-secondary); font-size: 13px; }
-  .date-cell { color: var(--text-secondary); white-space: nowrap; }
-  .pdf-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-teal); font-size: 12px; font-weight: 600; text-decoration: none; background: rgba(28,184,178,0.08); padding: 5px 10px; border-radius: 8px; transition: background 0.15s; white-space: nowrap; }
-  .pdf-link:hover { background: rgba(28,184,178,0.15); }
-  .actions-cell { display: flex; align-items: center; gap: 8px; }
-  .btn-accepter { display: inline-flex; align-items: center; gap: 6px; background: var(--accent-teal); color: #fff; border: none; border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.18s, transform 0.1s; white-space: nowrap; }
-  .btn-accepter:hover { background: #138F8A; transform: translateY(-1px); }
-  .btn-refuser { display: inline-flex; align-items: center; gap: 6px; background: #fff; color: var(--red); border: 1.5px solid var(--red); border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.18s, transform 0.1s; white-space: nowrap; }
-  .btn-refuser:hover { background: #fff1f1; transform: translateY(-1px); }
+  .org-cell { display: flex; align-items: center; gap: 10px; }
+  .org-logo {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #E1F7F6;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--accent-teal);
+    flex-shrink: 0; overflow: hidden;
+  }
+  .org-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .org-logo span { font-size: 13px; font-weight: 700; color: var(--accent-teal); text-transform: uppercase; }
+
+  .email-cell, .tel-cell { color: var(--text-secondary); font-size: 13px; }
+  .date-cell { color: var(--text-secondary); white-space: nowrap; font-size: 13px; }
+
+  .pdf-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-primary); font-size: 12px; font-weight: 500; text-decoration: none; background: rgba(0,0,0,0.04); padding: 5px 10px; border-radius: 6px; transition: all 0.2s; }
+  .pdf-link:hover { background: rgba(0,0,0,0.08); }
+
+  .actions-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  .btn-accepter {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: transparent; color: var(--accent-teal);
+    border: 1.5px solid var(--accent-teal); border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: all 0.2s;
+  }
+  .btn-accepter:hover { background: rgba(28,184,178,0.08); transform: translateY(-1px); }
+
+  .btn-refuser {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #fff5f5; color: var(--red);
+    border: 1.5px solid #fecaca; border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: all 0.2s;
+  }
+  .btn-refuser:hover { background: #fee2e2; border-color: var(--red); transform: translateY(-1px); }
 
   /* ===== PAGINATION ===== */
-  .pagination-wrap { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 18px 20px; border-top: 1px solid var(--border); }
-  .page-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.18s; }
-  .page-btn:hover:not(:disabled) { border-color: var(--accent-teal); color: var(--accent-teal); background: #E1F7F6; }
-  .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pagination-wrap { display: flex; justify-content: flex-end; padding: 14px 16px; border-top: 1px solid var(--border); }
+  .pagination-controls { display: flex; align-items: center; gap: 6px; }
+  .page-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.18s; font-family: inherit; }
+  .page-btn:hover:not(:disabled):not(.active) { border-color: #F47B20; color: #F47B20; background: #fff4ee; }
   .page-btn.active { background: #F47B20; color: #fff; border-color: #F47B20; }
-  .page-num { width: 34px; height: 34px; padding: 0; justify-content: center; }
-  .page-dots { padding: 0 4px; color: var(--text-light); font-size: 13px; display: flex; align-items: center; }
+  .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .page-dots { padding: 0 4px; color: var(--text-light); font-size: 13px; }
 
   /* ===== TOAST ===== */
-  .toast { position: fixed; bottom: 28px; right: 28px; background: #1a1d2e; color: #fff; padding: 14px 22px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.18); display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(12px); transition: all 0.3s; z-index: 999; pointer-events: none; }
+  .toast { position: fixed; bottom: 28px; right: 28px; background: #1a1d2e; color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.18); display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(12px); transition: all 0.3s; z-index: 999; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateY(0); }
   .toast.success { background: #166534; }
   .toast.error   { background: #991b1b; }
 
   /* ===== MODAL ===== */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.2s; }
-  .modal-overlay.show { opacity: 1; visibility: visible; }
-  .modal { background: #fff; border-radius: 20px; padding: 32px; width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transform: scale(0.95); transition: transform 0.2s; }
-  .modal-overlay.show .modal { transform: scale(1); }
-  .modal-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
-  .modal-icon.danger { background: #fee2e2; }
-  .modal-icon.success { background: #dcfce7; }
-  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-  .modal p  { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
-  .modal-actions { display: flex; gap: 10px; }
-  .modal-actions button { flex: 1; padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; border: none; transition: all 0.18s; }
-  .btn-cancel { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border) !important; }
-  .btn-cancel:hover { background: var(--border); }
-  .btn-confirm-accept { background: var(--accent-teal); color: #fff; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(26,29,46,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.2s; }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+  .modal { background: #fff; border-radius: var(--radius); padding: 28px; max-width: 380px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); text-align: center; transform: scale(0.95); transition: transform 0.2s; }
+  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-icon { width: 48px; height: 48px; background: rgba(239,68,68,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .modal p { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; }
+  .btn-cancel { flex: 1; padding: 10px; border: 1px solid var(--border); background: #fff; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-secondary); transition: background 0.18s; }
+  .btn-cancel:hover { background: var(--bg); }
+  .btn-confirm-accept { flex: 1; padding: 10px; background: var(--accent-teal); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.18s; }
   .btn-confirm-accept:hover { background: #138F8A; }
-  .btn-confirm-refuse { background: var(--red); color: #fff; }
+  .btn-confirm-refuse { flex: 1; padding: 10px; background: var(--red); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.18s; }
   .btn-confirm-refuse:hover { background: #dc2626; }
 </style>
 </head>
@@ -305,29 +280,22 @@ $current_page = basename($_SERVER['PHP_SELF']);
   </div>
 </aside>
 
-<!-- ===== MAIN ===== -->
 <div class="main">
-
-  <!-- TOPBAR (barre de recherche à gauche, date + profil à droite) -->
   <header class="topbar">
 
-    <!-- Barre de recherche (gauche, s'étire) -->
     <div class="search-bar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="searchInput" placeholder="Rechercher une organisation...">
+      <input type="text" id="searchInput" placeholder="Rechercher...">
     </div>
 
-    <!-- Date + Profil (droite, groupés) -->
-    <div class="topbar-right">
+    <div class="right-group">
 
-      <div class="today-date">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-        <span id="todayLabel"></span>
+      <div class="date-picker">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <?php
+          $mois_fr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+          echo date('d') . ' ' . $mois_fr[(int)date('n') - 1] . ' ' . date('Y');
+        ?>
       </div>
 
       <div class="profile-dropdown" id="profileDropdown">
@@ -348,60 +316,34 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
   </header>
 
-  <!-- CONTENT -->
   <div class="content">
+    <div class="page-title-card">Gestion des demandes d'inscription</div>
 
-    <!-- WELCOME CARD (titre + sous-titre) -->
-    <div class="welcome-card">
-      <h1>Demandes d'inscription</h1>
-      <p>Validez ou refusez les nouvelles organisations souhaitant rejoindre le réseau.</p>
-    </div>
-
-    <!-- STATS : 3 cartes -->
+    <!-- 2 cartes statistiques (en_attente supprimée de la topbar, on garde acceptées/refusées) -->
     <div class="stats-row">
-      <div class="stat-card stat-card--attente">
-        <div class="stat-card__icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="white" viewBox="0 0 16 16">
-            <path d="M12.5 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7m1.679-4.493-1.335 2.226a.75.75 0 0 1-1.174.144l-.774-.773a.5.5 0 0 1 .708-.708l.547.548 1.17-1.951a.5.5 0 1 1 .858.514"/>
-            <path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6.5a.5.5 0 0 1-1 0V1H3v14h3v-2.5a.5.5 0 0 1 .5-.5H8v4H3a1 1 0 0 1-1-1z"/>
-            <path d="M4.5 2a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm-6 3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm-6 3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm3 0a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/>
-          </svg>
-        </div>
-        <div class="stat-card__body">
-          <span class="stat-card__label">En attente</span>
-          <span class="stat-card__value" id="nbDemandesLabel"><?php echo $nb_demandes; ?></span>
-        </div>
+      <div class="stat-card">
+        <span class="stat-card__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e6a817" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </span>
+        <span class="stat-card__label">En attente :</span>
+        <span class="stat-card__value" id="nbDemandesLabel"><?php echo $nb_demandes; ?></span>
       </div>
-
-      <div class="stat-card stat-card--green">
-        <div class="stat-card__icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-        </div>
-        <div class="stat-card__body">
-          <span class="stat-card__label">Total acceptées</span>
-          <span class="stat-card__value"><?php echo $nb_acceptees; ?></span>
-        </div>
+      <div class="stat-card">
+        <span class="stat-card__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1CB8B2" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <span class="stat-card__label">Total acceptées :</span>
+        <span class="stat-card__value"><?php echo $nb_acceptees; ?></span>
       </div>
-
-      <div class="stat-card stat-card--red">
-        <div class="stat-card__icon">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-        </div>
-        <div class="stat-card__body">
-          <span class="stat-card__label">Total refusées</span>
-          <span class="stat-card__value"><?php echo $nb_refusees; ?></span>
-        </div>
+      <div class="stat-card">
+        <span class="stat-card__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </span>
+        <span class="stat-card__label">Total refusées :</span>
+        <span class="stat-card__value"><?php echo $nb_refusees; ?></span>
       </div>
     </div>
 
-    <!-- TABLEAU -->
     <div class="card">
       <table class="dem-table" id="demTable">
         <thead>
@@ -409,91 +351,102 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <th>Organisation</th>
             <th>Email</th>
             <th>Téléphone</th>
-            <th>Date</th>
+            <th>Date d'inscription</th>
             <th>Justificatif</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody id="demTableBody"></tbody>
       </table>
-      <div class="pagination-wrap" id="paginationWrap"></div>
+      <div class="pagination-wrap">
+        <div class="pagination-controls" id="paginationControls"></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ===== MODAL CONFIRMATION ===== -->
+<!-- MODAL CONFIRMATION -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <div class="modal-icon" id="modalIcon">
-      <svg id="modalIconSvg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="2"></svg>
+    <div class="modal-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </div>
-    <h3 id="modalTitle"></h3>
-    <p id="modalText"></p>
+    <h3 id="modalTitle">Confirmer la décision</h3>
+    <p id="modalText">Êtes-vous sûr de vouloir effectuer cette action ?</p>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Annuler</button>
-      <button id="btnConfirm" onclick="confirmAction()"></button>
+      <button id="btnConfirm" class="btn-confirm-accept" onclick="confirmAction()">Confirmer</button>
     </div>
   </div>
 </div>
 
-<!-- ===== TOAST ===== -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ========== DATE DU JOUR ==========
-(function() {
-  const now = new Date();
-  const label = now.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
-  document.getElementById('todayLabel').textContent = label;
-})();
-
 // ========== DONNÉES ==========
 const allDemandes = <?php echo json_encode($demandes); ?>;
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 let currentPage = 1;
 let filtered = [...allDemandes];
 let pendingAction = null;
 
+// ========== DATE EN MINUSCULE FRANÇAIS ==========
+const moisFr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
 function formatDate(str) {
   if (!str) return '—';
-  return new Date(str).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  var d = new Date(str);
+  return d.getDate() + ' ' + moisFr[d.getMonth()] + ' ' + d.getFullYear();
 }
+
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
 }
 
+function getFirstLetter(str) {
+  if (!str || str === '') return '?';
+  return str.trim().substring(0, 1);
+}
+
+function getLogoHtml(org) {
+  if (org.logo && org.logo !== '') {
+    var logoPath = '../' + org.logo;
+    return '<img src="' + logoPath + '" alt="Logo" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">';
+  } else {
+    var letter = getFirstLetter(org.nom_organisation).toUpperCase();
+    return '<span>' + letter + '</span>';
+  }
+}
+
 function renderTable(data, page) {
-  const tbody = document.getElementById('demTableBody');
-  const pagWrap = document.getElementById('paginationWrap');
+  var tbody = document.getElementById('demTableBody');
+  var pagWrap = document.getElementById('paginationControls');
   tbody.innerHTML = '';
 
   if (data.length === 0) {
-    tbody.innerHTML = `<td><td colspan="6" style="text-align:center;padding:52px 20px;color:var(--text-secondary);font-size:13px;">
-      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#1CB8B2" stroke-width="1.5" style="display:block;margin:0 auto 12px;opacity:0.35"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
-      Aucune demande en attente
-    <\/div></td>`;
-    pagWrap.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:52px 20px;color:var(--text-secondary);font-size:13px;">Aucune demande en attente<\/td><\/tr>';
+    if(pagWrap) pagWrap.innerHTML = '';
     return;
   }
 
-  const start = (page - 1) * ITEMS_PER_PAGE;
-  const slice = data.slice(start, start + ITEMS_PER_PAGE);
+  var start = (page - 1) * ITEMS_PER_PAGE;
+  var slice = data.slice(start, start + ITEMS_PER_PAGE);
 
-  slice.forEach(d => {
-    const tr = document.createElement('tr');
-    const justificatifPath = d.justificatif ? `/PFE/${d.justificatif}` : '';
-    const justificatifHtml = d.justificatif
-      ? `<a class="pdf-link" href="${justificatifPath}" target="_blank">
-           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-           ${escapeHtml(d.justificatif.split('/').pop())}
-         </a>`
+  for (var i = 0; i < slice.length; i++) {
+    var d = slice[i];
+    var justificatifPath = d.justificatif ? '/PFE/' + d.justificatif : '';
+    var justificatifHtml = d.justificatif
+      ? '<a class="pdf-link" href="' + justificatifPath + '" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/></svg> ' + escapeHtml(d.justificatif.split('/').pop()) + '</a>'
       : '<span style="color:var(--text-light);font-size:12px;">—</span>';
 
+    var logoHtml = getLogoHtml(d);
+
+    var tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
         <div class="org-cell">
-          <div class="org-logo">🏢</div>
+          <div class="org-logo">${logoHtml}</div>
           <div class="org-nom">${escapeHtml(d.nom_organisation)}</div>
         </div>
       </td>
@@ -501,138 +454,149 @@ function renderTable(data, page) {
       <td class="tel-cell">${escapeHtml(d.telephone || '—')}</td>
       <td class="date-cell">${formatDate(d.date_inscription)}</td>
       <td>${justificatifHtml}</td>
-      <td>
-        <div class="actions-cell">
-          <button class="btn-accepter" onclick="openModal(${d.id}, 'accepter', '${escapeHtml(d.nom_organisation).replace(/'/g,"\\'")}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Accepter
-          </button>
-          <button class="btn-refuser" onclick="openModal(${d.id}, 'refuser', '${escapeHtml(d.nom_organisation).replace(/'/g,"\\'")}')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            Refuser
-          </button>
-        </div>
-      </td>`;
+      <td class="actions-cell">
+        <button class="btn-accepter" onclick="openModal(${d.id}, 'accepter', '${escapeHtml(d.nom_organisation).replace(/'/g, "\\'")}')">Accepter</button>
+        <button class="btn-refuser" onclick="openModal(${d.id}, 'refuser', '${escapeHtml(d.nom_organisation).replace(/'/g, "\\'")}')">Refuser</button>
+      </td>
+    `;
     tbody.appendChild(tr);
-  });
+  }
   renderPagination(data.length, page);
 }
 
 function renderPagination(total, page) {
-  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
-  const wrap = document.getElementById('paginationWrap');
+  var totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+  var wrap = document.getElementById('paginationControls');
+  if(!wrap) return;
   wrap.innerHTML = '';
   if (totalPages <= 1) return;
-  const prev = document.createElement('button');
-  prev.className = 'page-btn'; prev.disabled = page === 1;
-  prev.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Précédent`;
-  prev.onclick = () => goToPage(page - 1);
-  wrap.appendChild(prev);
-  const pages = getPageNumbers(page, totalPages);
-  pages.forEach(p => {
-    if (p === '...') {
-      const s = document.createElement('span'); s.className = 'page-dots'; s.textContent = '…';
-      wrap.appendChild(s);
-    } else {
-      const b = document.createElement('button');
-      b.className = 'page-btn page-num' + (p === page ? ' active' : '');
-      b.textContent = p;
-      b.onclick = () => goToPage(p);
-      wrap.appendChild(b);
-    }
-  });
-  const next = document.createElement('button');
-  next.className = 'page-btn'; next.disabled = page === totalPages;
-  next.innerHTML = `Suivant <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>`;
-  next.onclick = () => goToPage(page + 1);
-  wrap.appendChild(next);
-}
 
-function getPageNumbers(current, total) {
-  if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
-  if (current <= 3) return [1,2,3,4,5,'...',total];
-  if (current >= total - 2) return [1,'...',total-4,total-3,total-2,total-1,total];
-  return [1,'...',current-1,current,current+1,'...',total];
+  var prev = document.createElement('button');
+  prev.className = 'page-btn';
+  prev.disabled = page === 1;
+  prev.innerHTML = '‹';
+  prev.onclick = function() { goToPage(page - 1); };
+  wrap.appendChild(prev);
+
+  for (var i = 1; i <= totalPages; i++) {
+    var btn = document.createElement('button');
+    btn.className = 'page-btn' + (i === page ? ' active' : '');
+    btn.textContent = i;
+    btn.onclick = (function(p) { return function() { goToPage(p); }; })(i);
+    wrap.appendChild(btn);
+  }
+
+  var next = document.createElement('button');
+  next.className = 'page-btn';
+  next.disabled = page === totalPages;
+  next.innerHTML = '›';
+  next.onclick = function() { goToPage(page + 1); };
+  wrap.appendChild(next);
 }
 
 function goToPage(p) { currentPage = p; renderTable(filtered, currentPage); }
 
-document.getElementById('searchInput').addEventListener('input', function() {
-  const term = this.value.toLowerCase();
-  filtered = allDemandes.filter(d =>
-    (d.nom_organisation || '').toLowerCase().includes(term) ||
-    (d.email_connexion || '').toLowerCase().includes(term) ||
-    (d.telephone || '').toLowerCase().includes(term)
-  );
-  currentPage = 1;
-  renderTable(filtered, currentPage);
-});
-
-function openModal(id, action, nom) {
-  pendingAction = { id, action, nom };
-  const icon = document.getElementById('modalIcon');
-  const iconSvg = document.getElementById('modalIconSvg');
-  const title = document.getElementById('modalTitle');
-  const text  = document.getElementById('modalText');
-  const btn   = document.getElementById('btnConfirm');
-  if (action === 'accepter') {
-    icon.className = 'modal-icon success';
-    iconSvg.setAttribute('stroke', '#166534');
-    iconSvg.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
-    title.textContent = 'Accepter la demande';
-    text.textContent  = `Vous êtes sur le point d'accepter l'organisation "${nom}". Elle pourra accéder à la plateforme.`;
-    btn.textContent   = "Confirmer l'acceptation";
-    btn.className     = 'btn-confirm-accept';
-  } else {
-    icon.className = 'modal-icon danger';
-    iconSvg.setAttribute('stroke', '#991b1b');
-    iconSvg.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
-    title.textContent = 'Refuser la demande';
-    text.textContent  = `Vous êtes sur le point de refuser la demande de "${nom}". Cette action est irréversible.`;
-    btn.textContent   = 'Confirmer le refus';
-    btn.className     = 'btn-confirm-refuse';
-  }
-  document.getElementById('modalOverlay').classList.add('show');
+var searchInput = document.getElementById('searchInput');
+if(searchInput) {
+  searchInput.addEventListener('input', function() {
+    var term = this.value.toLowerCase();
+    filtered = allDemandes.filter(function(d) {
+      return (d.nom_organisation || '').toLowerCase().includes(term) ||
+             (d.email_connexion || '').toLowerCase().includes(term) ||
+             (d.telephone || '').toLowerCase().includes(term);
+    });
+    currentPage = 1;
+    renderTable(filtered, currentPage);
+  });
 }
 
-function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); pendingAction = null; }
+function openModal(id, action, nom) {
+  pendingAction = { id: id, action: action, nom: nom };
+  var title = document.getElementById('modalTitle');
+  var text = document.getElementById('modalText');
+  var btn = document.getElementById('btnConfirm');
+
+  if (action === 'accepter') {
+    title.textContent = 'Accepter la demande';
+    text.textContent = 'Accepter l\'organisation "' + nom + '" ? Elle pourra accéder à la plateforme.';
+    btn.className = 'btn-confirm-accept';
+    btn.textContent = 'Confirmer';
+  } else {
+    title.textContent = 'Refuser la demande';
+    text.textContent = 'Refuser la demande de "' + nom + '" ? Cette action est irréversible.';
+    btn.className = 'btn-confirm-refuse';
+    btn.textContent = 'Confirmer';
+  }
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  pendingAction = null;
+}
 
 function confirmAction() {
   if (!pendingAction) return;
+
+  var action = pendingAction.action;
+  var orgId = pendingAction.id;
+  var nom = pendingAction.nom;
+
   closeModal();
-  const form = document.createElement('form');
-  form.method = 'POST'; form.action = 'demandes.php';
-  form.innerHTML = `<input type="hidden" name="action" value="${pendingAction.action}"><input type="hidden" name="org_id" value="${pendingAction.id}">`;
-  document.body.appendChild(form);
+
   showToast(
-    pendingAction.action === 'accepter'
-      ? `✓ "${pendingAction.nom}" a été acceptée`
-      : `✗ "${pendingAction.nom}" a été refusée`,
-    pendingAction.action === 'accepter' ? 'success' : 'error'
+    action === 'accepter' ? '✓ "' + nom + '" a été acceptée' : '✗ "' + nom + '" a été refusée',
+    action === 'accepter' ? 'success' : 'error'
   );
-  setTimeout(() => form.submit(), 900);
+
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = 'demandes.php';
+  form.style.display = 'none';
+
+  var inputAction = document.createElement('input');
+  inputAction.type = 'hidden';
+  inputAction.name = 'action';
+  inputAction.value = action;
+
+  var inputId = document.createElement('input');
+  inputId.type = 'hidden';
+  inputId.name = 'org_id';
+  inputId.value = orgId;
+
+  form.appendChild(inputAction);
+  form.appendChild(inputId);
+  document.body.appendChild(form);
+
+  setTimeout(function() { form.submit(); }, 500);
 }
 
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + type + ' show';
-  setTimeout(() => t.classList.remove('show'), 3000);
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.className = 'toast ' + (type || '') + ' show';
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
 }
 
 function toggleDropdown() { document.getElementById('profileDropdown').classList.toggle('active'); }
-document.addEventListener('click', e => {
-  const d = document.getElementById('profileDropdown');
+document.addEventListener('click', function(e) {
+  var d = document.getElementById('profileDropdown');
   if (d && !d.contains(e.target)) d.classList.remove('active');
 });
-document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
-document.querySelectorAll('.nav-item[data-page]').forEach(item => {
-  item.addEventListener('click', () => {
-    const page = item.getAttribute('data-page');
-    if      (page === 'dashboard')         window.location.href = 'dashboard.php';
-    else if (page === 'demandes')          window.location.href = 'demandes.php';
+var modalOverlay = document.getElementById('modalOverlay');
+if(modalOverlay) {
+  modalOverlay.addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+}
+
+document.querySelectorAll('.nav-item[data-page]').forEach(function(item) {
+  item.addEventListener('click', function() {
+    var page = item.getAttribute('data-page');
+    if (page === 'dashboard') window.location.href = 'dashboard.php';
+    else if (page === 'demandes') window.location.href = 'demandes.php';
     else if (page === 'organisations-nav') window.location.href = 'organisations.php';
-    else if (page === 'contributeurs')     window.location.href = 'contributeurs.php';
-    else if (page === 'deconnexion')       window.location.href = '../logout.php';
+    else if (page === 'contributeurs') window.location.href = 'contributeurs.php';
+    else if (page === 'deconnexion') window.location.href = '../logout.php';
   });
 });
 
