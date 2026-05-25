@@ -7,10 +7,20 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
     exit();
 }
 
+// Récupérer l'email de l'admin depuis la session ou la base
+if (!isset($_SESSION['user_email'])) {
+    $admin_id = $_SESSION['user_id'];
+    $sql_email = "SELECT email FROM admins WHERE id = $admin_id";
+    $result_email = mysqli_query($conn, $sql_email);
+    if ($row = mysqli_fetch_assoc($result_email)) {
+        $_SESSION['user_email'] = $row['email'];
+    }
+}
+
 // ========== STATISTIQUES ==========
-$sql = "SELECT COUNT(*) as nb FROM organisations";
+$sql = "SELECT COUNT(*) as nb FROM organisations WHERE statut = 'valide'";
 $result = mysqli_query($conn, $sql);
-$total_org = mysqli_fetch_assoc($result)['nb'];
+$total_org_validees = mysqli_fetch_assoc($result)['nb'];  // ← MODIFIÉ : organisations validées uniquement
 
 $sql = "SELECT COUNT(*) as nb FROM contributeurs";
 $result = mysqli_query($conn, $sql);
@@ -104,7 +114,6 @@ $sql = "SELECT id, nom_organisation, date_inscription, statut, logo FROM organis
 $result_org = mysqli_query($conn, $sql);
 $toutes_org = [];
 while($row = mysqli_fetch_assoc($result_org)) {
-    // Pour les logos, on enlève "uploads/" du chemin si présent car on va l'ajouter dans le JS
     if($row['logo'] && strpos($row['logo'], 'uploads/') === 0) {
         $row['logo'] = substr($row['logo'], 8);
     }
@@ -253,7 +262,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
   }
   .user-details { display: flex; flex-direction: column; gap: 1px; }
   .user-name  { font-weight: 600; font-size: 13px; white-space: nowrap; color: var(--text-primary); }
-  .user-email { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
 
   .dropdown-icon { font-size: 12px; transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; flex-shrink: 0; }
   .dropdown-menu { position: absolute; top: 100%; right: 0; margin-top: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 200px; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s; z-index: 100; }
@@ -439,7 +447,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
   <header class="topbar">
     <div class="greeting">
       <h2>Bonjour, administrateur</h2>
-      <p>Bienvenue sur votre tableau de bord</p>
+      <p>Bienvenue sur votre espace</p>
     </div>
 
     <div class="search-bar">
@@ -456,17 +464,22 @@ $current_page = basename($_SERVER['PHP_SELF']);
       <div class="user-info" onclick="toggleDropdown()">
         <div class="avatar"><?php echo strtoupper(substr($_SESSION['user_nom'], 0, 1)); ?></div>
         <div class="user-details">
-          <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_nom']); ?></span>
-          <span class="user-email"><?php echo htmlspecialchars($_SESSION['user_email'] ?? 'admin@connectaid.com'); ?></span>
+          <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_email'] ?? 'admin@connectaid.com'); ?></span>
         </div>
         <span class="dropdown-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>
         </span>
       </div>
       <div class="dropdown-menu">
-        <a href="mon_profil.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Mon profil</a>
+        <a href="mon_profil.php?from=dashboard">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Mon profil
+        </a>
         <hr>
-        <a href="../logout.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Déconnexion</a>
+        <a href="../logout.php">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Déconnexion
+        </a>
       </div>
     </div>
   </header>
@@ -475,7 +488,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="stat-cards">
       <div class="stat-card teal">
         <div class="stat-top"><div><div class="stat-label">Organisations</div></div><div class="stat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM4.5 8a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1zm11 0H3v14h3v-2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V15h3z"/></svg></div></div>
-        <div><div class="stat-value"><?php echo $total_org; ?></div></div>
+        <div><div class="stat-value"><?php echo $total_org_validees; ?></div></div>
       </div>
       <div class="stat-card blue">
         <div class="stat-top"><div><div class="stat-label">Contributeurs</div></div><div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div></div>

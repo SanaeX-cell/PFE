@@ -76,6 +76,24 @@ $stmt->bind_result($admin_email, $admin_date);
 $stmt->fetch();
 $stmt->close();
 
+// ========== BREADCRUMB : page d'origine ==========
+$allowed_origins = [
+    'dashboard'     => ['label' => 'Tableau de bord',  'url' => 'dashboard.php'],
+    'demandes'      => ['label' => 'Demandes',          'url' => 'demandes.php'],
+    'organisations' => ['label' => 'Organisations',     'url' => 'organisations.php'],
+    'contributeurs' => ['label' => 'Contributeurs',     'url' => 'contributeurs.php'],
+];
+
+$from = isset($_GET['from']) && array_key_exists($_GET['from'], $allowed_origins)
+    ? $_GET['from']
+    : 'dashboard';
+
+$origin_label = $allowed_origins[$from]['label'];
+$origin_url   = $allowed_origins[$from]['url'];
+
+// Conserver le paramètre ?from= dans les liens du formulaire pour ne pas le perdre après POST
+$from_param = '?from=' . urlencode($from);
+
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!DOCTYPE html>
@@ -141,7 +159,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-teal); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; overflow: hidden; flex-shrink: 0; }
   .user-details { display: flex; flex-direction: column; gap: 1px; }
   .user-name  { font-weight: 600; font-size: 13px; white-space: nowrap; color: var(--text-primary); }
-  .user-email { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
   .dropdown-icon { font-size: 12px; transition: transform 0.2s; display: inline-flex; align-items: center; color: #8b8fa8; flex-shrink: 0; }
   .dropdown-menu { position: absolute; top: 100%; right: 0; margin-top: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); min-width: 200px; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.2s; z-index: 100; }
   .profile-dropdown.active .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
@@ -171,7 +188,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     position: relative;
     overflow: hidden;
   }
-  /* Bulle 1 — haut droite */
   .profile-hero::before {
     content: '';
     position: absolute;
@@ -180,7 +196,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     border-radius: 50%;
     background: rgba(255,255,255,0.22);
   }
-  /* Bulle 2 — bas gauche du triangle */
   .profile-hero::after {
     content: '';
     position: absolute;
@@ -189,7 +204,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
     border-radius: 50%;
     background: rgba(255,255,255,0.18);
   }
-  /* Bulle 3 — bas droite du triangle */
   .bubble3 {
     position: absolute;
     bottom: 2px; right: 5px;
@@ -395,14 +409,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
       <div class="user-info" onclick="toggleDropdown()">
         <div class="avatar"><?php echo strtoupper(substr($_SESSION['user_nom'], 0, 1)); ?></div>
         <div class="user-details">
-          <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_nom']); ?></span>
+          <span class="user-name"><?php echo htmlspecialchars($_SESSION['user_email'] ?? 'admin@connectaid.com'); ?></span>
         </div>
         <span class="dropdown-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>
         </span>
       </div>
       <div class="dropdown-menu">
-        <a href="mon_profil.php">
+        <a href="mon_profil.php<?php echo $from_param; ?>">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           Mon profil
         </a>
@@ -417,9 +431,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
   <div class="content">
 
-    <!-- Breadcrumb -->
+    <!-- Breadcrumb dynamique -->
     <div class="breadcrumb">
-      <a href="dashboard.php">Tableau de bord</a>
+      <a href="<?php echo htmlspecialchars($origin_url); ?>"><?php echo htmlspecialchars($origin_label); ?></a>
       <span>›</span>
       <span>Mon profil</span>
     </div>
@@ -466,7 +480,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
           </div>
         <?php endif; ?>
 
-        <!-- Info actuelle -->
         <div class="info-row">
           <div>
             <div class="info-label">Email actuel</div>
@@ -477,7 +490,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
         <div class="form-divider">Nouveau email</div>
 
-        <form method="POST" action="">
+        <form method="POST" action="mon_profil.php<?php echo $from_param; ?>">
           <div class="form-group">
             <label class="form-label">Nouvelle adresse email</label>
             <input type="email" name="nouvel_email" class="form-input" placeholder="exemple@domaine.com" required>
@@ -514,7 +527,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
           </div>
         <?php endif; ?>
 
-        <form method="POST" action="">
+        <form method="POST" action="mon_profil.php<?php echo $from_param; ?>">
           <div class="form-group">
             <label class="form-label">Ancien mot de passe</label>
             <div class="input-with-icon">

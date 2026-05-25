@@ -85,14 +85,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
   /* ===== TOPBAR ===== */
   .topbar { background: transparent; padding: 16px 32px 16px calc(32px + 15px); display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 5; }
 
-  /* La search-bar prend tout l'espace disponible à gauche */
   .search-bar { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; flex: 1; font-size: 13px; color: var(--text-secondary); box-shadow: var(--shadow); }
   .search-bar input { border: none; outline: none; background: transparent; width: 100%; font-family: inherit; font-size: 13px; }
 
-  /* Groupe droite : total + date + profil alignés à droite */
   .right-group { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 
-  /* ===== TOTAL BOX ===== */
   .total-box { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 13px; font-weight: 500; color: var(--text-secondary); box-shadow: var(--shadow); white-space: nowrap; }
   .total-box strong { color: var(--text-primary); font-weight: 700; }
 
@@ -127,7 +124,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .contrib-name { display: flex; align-items: center; gap: 10px; }
   .contrib-avatar { width: 34px; height: 34px; border-radius: 10px; background: #E1F7F6; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--accent-teal); flex-shrink: 0; }
 
-  .btn-delete { display: inline-flex; align-items: center; gap: 6px; background: rgba(239,68,68,0.08); color: var(--red); border: none; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.18s, color 0.18s; }
+  .btn-delete { display: inline-flex; align-items: center; gap: 6px; background: rgba(239,68,68,0.08); color: var(--red); border: none; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.18s; }
   .btn-delete:hover { background: var(--red); color: #fff; }
 
   /* ===== PAGINATION ===== */
@@ -139,7 +136,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
   .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
   .page-dots { padding: 0 4px; color: var(--text-light); font-size: 13px; }
 
-  /* ===== MODAL CONFIRMATION ===== */
+  /* ===== MODAL ===== */
   .modal-overlay { position: fixed; inset: 0; background: rgba(26,29,46,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.2s; }
   .modal-overlay.open { opacity: 1; visibility: visible; }
   .modal { background: #fff; border-radius: var(--radius); padding: 32px; max-width: 380px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); text-align: center; transform: scale(0.95); transition: transform 0.2s; }
@@ -190,28 +187,23 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <div class="main">
   <header class="topbar">
 
-    <!-- Barre de recherche : s'élargit pour occuper tout l'espace gauche -->
     <div class="search-bar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="searchInput" placeholder="Rechercher...">
     </div>
 
-    <!-- Groupe droite : total + date + profil alignés à droite -->
     <div class="right-group">
 
-      <!-- Box total contributeurs -->
       <div class="total-box">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Total contributeurs : <strong id="totalCount"><?php echo $total_contributeurs; ?></strong>
       </div>
 
-      <!-- Date -->
       <div class="date-picker">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <?php setlocale(LC_TIME, 'fr_FR.utf8', 'fr_FR', 'fr'); echo strftime('%d %B %Y'); ?>
       </div>
 
-      <!-- Profil -->
       <div class="profile-dropdown" id="profileDropdown">
         <div class="user-info" onclick="toggleDropdown()">
           <div class="avatar"><?php echo strtoupper(substr($_SESSION['user_nom'], 0, 1)); ?></div>
@@ -221,9 +213,15 @@ $current_page = basename($_SERVER['PHP_SELF']);
           </span>
         </div>
         <div class="dropdown-menu">
-          <a href="mon_profil.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Mon profil</a>
+          <a href="mon_profil.php?from=contributeurs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Mon profil
+          </a>
           <hr>
-          <a href="../logout.php"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Déconnexion</a>
+          <a href="../logout.php">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Déconnexion
+          </a>
         </div>
       </div>
 
@@ -269,7 +267,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
   </div>
 </div>
 
-<!-- Formulaire de suppression caché -->
 <form id="deleteForm" method="POST" action="contributeurs.php" style="display:none;">
   <input type="hidden" name="delete_id" id="deleteIdInput">
 </form>
@@ -287,7 +284,7 @@ function formatDateFr(dateStr) {
 }
 function escapeHtml(str) {
   if (!str) return '—';
-  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
 }
 function initials(nom, prenom) {
   return ((nom||'').charAt(0) + (prenom||'').charAt(0)).toUpperCase();
@@ -300,7 +297,7 @@ function renderContributeurs(data, page) {
   const slice = data.slice(start, start + ITEMS_PER_PAGE);
   tbody.innerHTML = '';
   if (slice.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px 0;">Aucun contributeur trouvé</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px 0;">Aucun contributeur trouvé<\/td><\/tr>';
   } else {
     slice.forEach(c => {
       const row = document.createElement('tr');
@@ -315,7 +312,8 @@ function renderContributeurs(data, page) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             Supprimer
           </button>
-        </td>`;
+        </td>
+      `;
       tbody.appendChild(row);
     });
   }
